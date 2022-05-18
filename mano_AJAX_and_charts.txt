@@ -1,0 +1,153 @@
+<html>
+    <head>
+		<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+		 
+		<script src="https://www.gstatic.com/charts/loader.js"></script> 
+	</head>	
+	<h1>Welcome! This page will give you the option of entering a miRNA to see the target scores of all the genes that it targets.  You can also enter a sequence to see a list of miRNAs that have sequences containing what you searched.</h1>
+    <body>
+    	<h2>Target Scores Histogram</h2>
+          <label for = "miRNAentry"> Enter an miRNA name(examples:hsa-let-7a, hsa-miR-1)</label> 
+		  <input type="text" id = "miRNA" name="miRNA"><br>
+          <button id="scores"> target scores histogram</button><br/><br/>
+          <div id="hist" style = "width:400px;height:300px;"></div>
+       
+		<h2>miRNA Sequence Search</h2>
+		  <label for = "seq"> RNA Search Sequence(must be 3-8 characters, ACGU characters only): </label> 
+		  <input type="text" id = "seq" name="seq"><br>
+		  <button id ="miRNA_list"> find miRNAs</button><br/><br/>
+		  <div id ="RNAseq_table"></div>
+		  
+		  
+		<script>
+			//after document is loaded
+			google.charts.load("current", {packages:["corechart"]});
+			$(document).ready(function(){
+				$("#scores").click(function(){
+					let miRNA = $("#miRNA").val();
+					$("#hist").empty();
+					if(miRNA==""){
+						alert("No miRNA name submitted"); //check if there's input, alert if there isn't
+						
+					}
+					
+					scores_hist();
+					
+					
+						
+				});
+				
+				$("#miRNA_list").click(function(){
+					let input_seq = $("#seq").val();
+					$("#RNAseq_table").empty();
+					var valid = /[^ACGU]/; //regexp for valid characters
+					if (input_seq == ""){
+						alert("No sequence entered");
+						
+					}
+					else if (input_seq.length < 3 || input_seq.length > 8){
+						alert("Entered sequence is not the right length");
+					
+					}
+					
+					
+					else if (valid.test(input_seq) == true){
+						alert("Entered sequence contains invalid characters");
+					
+					}
+					else{
+						miRNA_from_seq();
+					}
+				});
+				
+				
+				
+			});
+			
+			
+			//function to get target scores
+			function scores_hist() {
+				let miRNA = $("#miRNA").val(); //taking input of miRNA name for histogram
+				$.get("https://bioed.bu.edu/cgi-bin/students_22/mranawee/mano_AJAX.py", //send AJAX request to CGI
+					{selector:"hist", miRNA:miRNA}, //selector variable
+					function(result) {
+						hist_format(result);
+					},
+					"json"
+				);
+			}
+			
+			//function to format histogram
+			function hist_format(result) {
+				let miRNA = $("#miRNA").val();
+				if(result.length === 0) { 
+					alert("no data available for the name ${miRNA}"); //error message if table is empty
+					return;
+				}
+				result.unshift(["miRNA"]);
+				var chart_data = new google.visualization.arrayToDataTable(result);
+				var options = {title:`Target scores of genes targeted by the miRNA ${miRNA}`};
+				var chart = new google.visualization.Histogram(document.getElementById('hist'));
+				chart.draw(chart_data, options);
+					
+				
+			}
+			
+			//sequence search
+			function miRNA_from_seq() { 
+				let input_seq = $("#seq").val();
+				$.get("https://bioed.bu.edu/cgi-bin/students_22/mranawee/mano_AJAX.py",
+					{selector:"RNAseq_table", input_seq:input_seq}, //selector variable
+					function(result) {
+						seqRes_format(result);
+					},
+					"json"
+				);
+			}
+			
+			function seqRes_format(result){		
+				let input_seq = $("#seq").val();
+				
+				
+				if (result.length === 0){
+					alert(`No miRNAs found with sequence ${input_seq}`);
+					return;
+				}
+				
+				let table_body_contents = "";
+				
+				let fullSeq = "";
+				let miRNA_name = "";
+				$("#RNAseq_table").append("<h3> miRNAs that contain the entered sequence </h3>"); //title
+				if (result !=""){
+					for (let row = 0; row < result.length; row++) {
+					fullSeq = result[row][0]; //first element of each row
+					miRNA_name = result[row][1]; //second element of each row
+					table_body_contents += `<tr><td>${fullSeq}</td><td> ${miRNA_name}</td></tr>`;				
+					}
+				
+				
+					let table_template = `<table><thead><tr><th>miRNAs that contain sequence ${input_seq}</th></tr></thead><tbody>${table_body_contents}</tbody></table>`;
+					
+					$("#RNAseq_table").append(table_template);
+			
+				}
+			
+				
+					
+					
+					
+			}
+			
+			
+			
+			
+			
+			
+			
+			
+			
+		
+		</script>
+    </body>
+</html>
